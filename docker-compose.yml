@@ -1,0 +1,64 @@
+
+version: '3.8'
+services:
+    server:
+        build: ./server
+        container_name: server
+        ports:
+            - '5000:5000'   
+        env_file:
+            - env.list    
+        restart: always          
+        depends_on:
+            - db
+            - redis
+    cron:
+        build: ./cron
+        container_name: cron
+        restart: always   
+        env_file:
+            - env.list   
+        ports:
+            - '5002:5002' 
+
+    notify_server:
+        build: ./notify_server
+        container_name: notify_server
+        env_file:
+            - env.list  
+        restart: always
+        ports:
+            - '5001:5001'     
+    db:
+        hostname: db
+        image: mysql:5.7.20
+        container_name: mysqldb
+        restart: unless-stopped
+        command: --sql_mode=""
+        environment:
+            MYSQL_ROOT_PASSWORD: root
+            MYSQL_DATABASE: test
+            MYSQL_PASSWORD: root
+        ports:
+            - "3303:3306"
+        volumes:
+            - ./data:/docker-entrypoint-initdb.d
+
+    redis:
+        image: redis:latest
+        container_name: redis
+        ports:
+            - "6379:6379"
+        volumes:
+            - ./redis-data:/data
+            - ./redis.conf:/usr/local/etc/redis/redis.conf
+
+    redis-commander:
+        container_name: redis-commander
+        hostname: redis-commander
+        image: rediscommander/redis-commander:latest
+        restart: always
+        environment:
+            - REDIS_HOSTS=local:redis:6379
+        ports:
+            - "8081:8081"       

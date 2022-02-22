@@ -1,0 +1,7 @@
+Flask
+pika
+redis
+Flask-SQLAlchemy
+flask-migrate
+mysqlclient
+sqlalchemy-utils
