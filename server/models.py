@@ -21,3 +21,5 @@ class Task(Base):
     def __init__(self, name, assigned):
         self.name = name
         self.assigned = assigned
+
+Base.metadata.create_all(engine)   

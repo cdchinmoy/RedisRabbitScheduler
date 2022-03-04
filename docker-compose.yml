@@ -45,7 +45,7 @@ services:
             - ./data:/docker-entrypoint-initdb.d
 
     redis:
-        image: redis:latest
+        image: redislabs/redisearch:latest
         container_name: redis
         ports:
             - "6379:6379"
