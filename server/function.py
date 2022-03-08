@@ -1,67 +1,76 @@
 from sys import implementation
-from sqlalchemy import create_engine, Column, Integer, String, BOOLEAN, null
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-import redis
 from models import sess, Task
-from redis_search_model import redis_search_client
-from redis_core import  key_exist
-
+from redis_core import  key_exist, insert_to_redis, get_data_from_redis, update_redis
 
 def assigned_zero():
-        
     search_keyword = "job:*"
     if key_exist(search_keyword):
-
-        res = redis_search_client.search("@assigned:none")
-        if len(res.docs):
-
-            for row in res.docs:
-                redis_search_client.redis.hset('job:'+str(row.id),
-                                mapping={
-                                    'assigned': int(0)
-                                })
-
-
-            sess.query(Task).filter(Task.id==row.id).update(dict(assigned=0))
-            sess.commit()
-            sess.close()
-            return len(res.docs)
-
+        res = get_data_from_redis(search_keyword, "assigned", "none")
+        if len(res):
+            args = []
+            kwargs = []
+            for row in res:
+                args.append(row['id'])
+                row_dict = {}
+                row_dict['assigned'] = 0
+                kwargs.append(row_dict)
+            #DATABASE REDIS
+            update_redis(search_keyword, args, kwargs)
+            #DATABASE UPDATE
+            update_data = {'assigned':0}
+            update_database(res, update_data)
+            return len(res)  
+        else:
+            return 0    
     else:
-
         data = sess.query(Task).filter(Task.assigned==None).count()
         if data:
             sess.query(Task).filter(Task.assigned==None).update(dict(assigned=0))
             sess.commit()
             sess.close()
-
-
         rows = sess.query(Task).all()
         if rows:
             for row in rows:
-
                 if row.assigned == None:
                     assigned = 'none'
                 else:
                     assigned = int(row.assigned)
-                redis_search_client.redis.hset('job:'+str(row.id),
-                            mapping={
-                                'id': row.id,
-                                'name':row.name,
-                                'assigned': assigned
-                            })
-
-
-        return data           
-
-    
+                args = []
+                kwargs = []
+                for row in rows:
+                    args.append(row.id)
+                    data_dict = vars(row)
+                    if '_sa_instance_state' in data_dict:
+                        del data_dict['_sa_instance_state']
+                    kwargs.append(data_dict)
+                search_keyword = "job:*"
+                insert_to_redis(search_keyword, args, kwargs)
+        return data
 
 
 def assigned_one():
-    data = sess.query(Task).filter(Task.assigned==0).count()
-    if data:
-        sess.query(Task).filter(Task.assigned==0).update(dict(assigned=1))
+    search_keyword = "job:*"
+    res = get_data_from_redis(search_keyword, "assigned", "0")
+    if len(res):
+        args = []
+        kwargs = []
+        for row in res:
+            args.append(row['id'])
+            row_dict = {}
+            row_dict['assigned'] = 1
+            kwargs.append(row_dict)
+        #DATABASE REDIS
+        update_redis(search_keyword, args, kwargs)
+        #DATABASE UPDATE
+        update_data = {'assigned':1}
+        update_database(res, update_data)
+        return len(res)  
+    else:
+        return 0    
+    
+
+def update_database(data, update_data):
+    for row in data:
+        sess.query(Task).filter(Task.id==row['id']).update(update_data)
         sess.commit()
-    sess.close()
-    return 2
+        sess.close()       

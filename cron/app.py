@@ -4,6 +4,7 @@ import schedule
 
 #Time should UTC & frormat should be HH:MM:SS
 schedule.every(1).minutes.do(first_job)
+schedule.every(2).minutes.do(second_job)
 # schedule.every().day.at("10:02:00").do(first_job)
 # schedule.every().day.at("10:03:00").do(second_job)
 
