@@ -1,3 +1,4 @@
+from curses import flash
 from rpc_publisher import RpcClient
 from notification_publisher import publish
 import json
