@@ -1,6 +1,9 @@
 import redis
 from sqlalchemy import true
-redis_client = redis.Redis(host='redis', port=6379)
+try:
+    redis_client = redis.Redis(host='redis', port=6379)
+except Exception as e:
+    print("Redis connection failure.")
 
 def key_exist(search_key):  
     key_list = []  

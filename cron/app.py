@@ -1,29 +1,43 @@
-import os
-import time
-from job import first_job, second_job
-from datetime import datetime
-import schedule
-from time_format import get_utc_time, get_24hr_format, get_scheduler_time_format
+from flask import Flask, jsonify
+from rpc_publisher import RpcClient
+from notification_publisher import publish
+import json
+from apscheduler.schedulers.background import BackgroundScheduler
 
-timezone = os.environ['TIMEZONE']
-
-time1 = get_24hr_format('06:00 PM')
-time2 = get_24hr_format('09:00 PM')
-today = datetime.today().strftime('%Y-%m-%d')
-first_schedule_time = today + " " + time1
-second_schedule_time = today + " " + time2
-
-utc_first_schedule_datetime_obj = get_utc_time(timezone, first_schedule_time)
-utc_second_schedule_datetime_obj = get_utc_time(timezone, second_schedule_time)
-
-utc_first_schedule_time = get_scheduler_time_format(utc_first_schedule_datetime_obj)
-utc_second_schedule_time = get_scheduler_time_format(utc_second_schedule_datetime_obj)
-
-# schedule.every(1).minutes.do(first_job)
-schedule.every().day.at(utc_first_schedule_time).do(first_job)
-schedule.every().day.at(utc_second_schedule_time).do(second_job)
+app = Flask(__name__)
+scheduler = BackgroundScheduler()
+scheduler.start()
 
 
-while True:
-    schedule.run_pending()
-    time.sleep(1)
+@scheduler.scheduled_job('cron', day='*', hour='18', minute='00')
+def first_job():
+    data = {'target_function':'assigned_zero'}
+    rpcclient = RpcClient()
+    response = rpcclient.call(json.dumps(data))
+    job_count = response.decode('utf-8')
+    if int(job_count) > 0:
+        subject = "First Mail"
+        mail_body = str(job_count)+" numbers of tasks are available."
+        receiver_list = "cdchinmoy@gmail.com","express.chinmoy@gmail.com"
+        data = {'subject':subject, 'mail_body':mail_body, 'receiver_list':receiver_list}
+        publish(data)
+
+
+@scheduler.scheduled_job('cron', day='*', hour='21', minute='00')
+def second_job():
+    data = {'target_function':'assigned_one'}
+    rpcclient = RpcClient()
+    response = rpcclient.call(json.dumps(data))
+    job_count = response.decode('utf-8')
+
+    if int(job_count) > 0:
+        subject = "Second Mail"
+        mail_body = "No task available!"
+        receiver_list = "cdchinmoy@gmail.com","express.chinmoy@gmail.com"
+        data = {'subject':subject, 'mail_body':mail_body,'receiver_list':receiver_list}
+        publish(data)
+
+
+if __name__ == '__main__':
+    app.run(debug=True, use_reloader=False,
+            host='0.0.0.0', port="5000", threaded=True)

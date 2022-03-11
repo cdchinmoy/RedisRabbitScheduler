@@ -3,3 +3,4 @@ pika
 redis
 schedule
 pytz
+apscheduler
